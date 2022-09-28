@@ -1,0 +1,150 @@
+%%% Matlab Multisensor Übung  %%%%%
+
+
+
+%%%%% Traking %%%%%%
+%   Diese MATLAB-Funktion ordnet dem prädizierten Track xP Messwerte z zu.
+%
+%   SYNTAX:
+%     z = Zuordnung(hz,hRect,xP,z,aKG)
+%
+%   BESCHREIBUNG:
+%   Mit dem Aufruf werden die Messvektoren z dem relevanten Ziel xP
+%   zugeordnet. Die erfolgt über ein rechteckiges Gating. Das die Größe des
+%   Gates wird in aKG übergeben. Im Vektor z werden Messwerte außerhalb des
+%   Gates mit NaN überschrieben und können so nachfolgend vernachlässigt
+%   werden. Die verbleibenden Messwerte werden in der Grafik gelb markiert.
+%   Ein schwarzes Rechteck visualisiert das Gate um das prädizierte Track
+%   xP.
+%
+%   Eingabewerte sind:
+%    hz:     Handle der gelben Messpunkte im Gate
+%    hRect:  Handle des schwarzen Rechtecks
+%    xP:     Prädiktion des Zustandsvektors (z.B. 6x1 double)
+%    z:      Messvektor für den aktuellen Zyklus (z.B. 2x682 double)
+%    aKG:    Größe des Gate z.B aKG = [dx dy] = [0.3 0.3]; % in m
+%
+%   Rückgabewert ist:
+%    z:      Messvektor für den aktuellen Zyklus (z.B. 2x682 double)
+%            Messwerte mit NaN können vernachlässigt werden.
+%    xP:     Prädiktion des Zustandsvektors (z.B. 6x1 double)
+%  
+%   BEISPIEL:
+%      z = Zuordnung(hz,hRect,xP,z,aKG)
+
+%**************************************************************************
+%        Hochschule Hamm-Lippstadt                                        *
+%**************************************************************************
+% Modul	          :                                                       *
+%                                                                         *
+% Datum           : 05. Oktober 2021                                      *
+%                                                                         *
+% Funktion        :                                                       *
+%                                                                         *
+% Implementation  : MATLAB R2020b                                         *
+%                                                                         *
+% Req. Toolbox    :                                                       *
+%                                                                         *
+% Author          : Max Mustermann                                        *
+%                                                                         *
+% Bemerkung       :                                                       *
+%                                                                         *
+% Letzte Änderung : 05. Oktober 2021                                      *
+%                                                                         *
+%*************************************************************************/
+
+%% Schreiben Sie die Funktion Zuordnung.m.
+function  [z,xP] = Zuordnung(hz,hRect,xP,z,aKG) 
+nObjekte = size(z,2);
+for o=1:nObjekte
+    %% Nutzen sie ein rechteckiges Gate als Zuordnungsverfahren für die Messwerte.
+    aDistanzmatrix(o) = RechteckigesGating(xP, z(1:2,o) , aKG);
+    if aDistanzmatrix(o) == Inf
+        z(1:2,o) = NaN(2,1);
+    end
+end
+
+    
+    
+        
+
+        
+
+
+%% Markieren Sie die ausgewählten Messwert
+set(hz,'XData',z(2,:),'YData',z(1,:));
+%% neu Position 
+%% Berechnung des neuen Tracks xP durch Mittelung
+xP = [mean(z(1,:),'omitnan'),mean(z(2,:),'omitnan')];
+%% Visualisieren Sie Ihr Gate um das relevante Ziel mit einem schwarzen Rechteck.
+set(hRect,'Position',[xP(2)-aKG(2)/2 xP(1)-aKG(1)/2 aKG(2) aKG(1)]);
+end
+%% Rohdaten laden
+load('LiDAR.mat');
+
+%% Initialisierung der Zeit
+dT = diff(Zeit); % dt ermitteln
+dT=[dT(1);dT(:)]; % 336 Messwerte
+
+
+%% Figure vorbereiten
+% ROI festlegen
+xROI = [-1; 1];
+yROI = [0; 5];
+fRange = 5.5; % m
+
+hFigure=figure('units','normalized','outerposition',[0 0 1 1]);
+h = plot(0,0,'b.');
+hold on
+hMesswerte = plot(0,0,'r.'); % Messwerte vorbereiten
+hz = plot(0,0,'b.');         % Messwerte nach dem Gating
+ha = gca;
+hRect = rectangle('Position',[-1 -1 1 1]); % Gate
+hRT = plot(0,0,'Marker','p','Color','b','LineWidth',2); % Relevantes Ziel
+set(ha,'XDir','reverse');
+line([-fRange fRange], [0 0])
+line([0 0], [-fRange fRange])
+xlabel('y in m');
+ylabel('x in m');
+ylim manual
+xlim manual
+
+hAxis = gca;
+hAxis.XLimMode  = 'manual';
+hAxis.YLimMode  = 'manual';
+
+xlim(xROI)
+ylim(yROI)
+
+%% Ausgabe
+
+
+%**************************************************************************
+% ERST AB HIER ETWAS ÄNDERN
+%**************************************************************************
+%% Messdaten darstellen
+nStart = 1; %35;
+nEnde  = length(Zeit); % Anzahl der Frames
+
+%% Parameter für das Gating
+aKG = [0.05 0.15]; % in m
+
+xP = [0.14 0]; % Trackinitialisierung
+
+for nFrame=nStart:nEnde % Zyklusschleife über alle Messzyklen
+    
+    %% 1) Lade Messwerte
+    z = LadeMesswerte(nFrame, xMesswerte ,yMesswerte);
+    
+    set(hRT,'XData',xP(2),'YData',xP(1))
+    
+    %% 2) Darstellung der Messwerte
+    ZeigeMesswerte(hMesswerte, nFrame, z);
+    
+        %% 3) Gating als Zuordnung
+    [z,xP] = Zuordnung(hz,hRect,xP,z,aKG);
+    
+
+    pause(0.00001) % Pause zur Darstellung
+    
+end
